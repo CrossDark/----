@@ -8,6 +8,8 @@
 
 #set text(lang: "zh", font: (
   "等距更紗黑體 CL",
+  "Noto Sans CJK SC",
+  "WenQuanYi Micro Hei",
 ))
 
 
