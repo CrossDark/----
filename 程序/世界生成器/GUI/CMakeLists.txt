@@ -27,6 +27,14 @@ set_target_properties(worldgen_gui PROPERTIES
     MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
 )
 
-# worldgen_core.c 需要 zlib 以写 PNG
-find_library(ZLIB_LIB z)
-target_link_libraries(worldgen_gui PRIVATE Qt6::Widgets Qt6::Concurrent ${ZLIB_LIB} m)
+# Windows: 无控制台窗口的 GUI 程序
+if(WIN32)
+    set_target_properties(worldgen_gui PROPERTIES WIN32_EXECUTABLE TRUE)
+endif()
+
+# worldgen_core.c 需要 zlib 以写 PNG(跨平台统一用 find_package)
+find_package(ZLIB REQUIRED)
+target_link_libraries(worldgen_gui PRIVATE Qt6::Widgets Qt6::Concurrent ZLIB::ZLIB)
+if(UNIX)
+    target_link_libraries(worldgen_gui PRIVATE m)
+endif()

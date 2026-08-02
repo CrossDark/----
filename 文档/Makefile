@@ -1,7 +1,8 @@
 TYPST := typst
 MAIN   := 地狱之下.typ
 OUT    := dist/地狱之下.pdf
-FLAGS  := --font-path fonts
+# --root .. 让项目根回到仓库根,以便访问 ../图片 等根目录资源
+FLAGS  := --root .. --font-path fonts
 
 .PHONY: all clean
 
