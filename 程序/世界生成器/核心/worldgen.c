@@ -20,8 +20,10 @@
  *
  * 编译: gcc -O3 worldgen.c -lm -lz -o worldgen
  * 用法:
- *   ./worldgen <种子> <故障次数:0=自动> <水占比> [宽度] [高度] [线宽] [输出.png] [-g]
+ *   ./worldgen <种子> <故障次数:0=自动> <水占比> [宽度] [高度] [线宽] [输出.png] [-g] [-c N] [-fill]
  *   例: ./worldgen 42 0 60 2560 1440 3 图片/地图_生成.png
+ *   例: ./worldgen 7 250 65 2560 1440 1 图片/地图_生成.png -c 8
+ *   例: ./worldgen 7 250 65 2560 1440 1 图片/地图_分层设色.png -fill
  *
  * 说明:
  *   - 故障次数传 0 时按宽度自动选取(约为 宽度/10)
@@ -29,6 +31,11 @@
  *   - 水占比 0..100,越大海洋越多(岛屿越多)
  *   - 线宽为海岸线线条的像素宽度
  *   - 加 -g 会叠加半透明的经纬网格线
+ *   - 加 -c N 会额外输出 N 张"等高线切片":不同高度阈值的等值线,
+ *     1px 黑色线条,透明背景,命名 <输出基名>_切片_01.png ... ,
+ *     供后期逐层合成等高线地图
+ *   - 加 -fill 会输出 "分层设色地图":按相对海平面的高度给每个像素
+ *     填充颜色(海洋:深蓝->青蓝;陆地:绿->黄绿->棕->白),不透明 PNG
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -253,6 +260,87 @@ static void trace_coast(unsigned char *rgba, int line_width, int graticule)
     }
 }
 
+/* 按高度阈值提取等高线: 边界(>=level 与 <level)描黑,1px,供合成等高线地图 */
+static void trace_contour(unsigned char *rgba, int level)
+{
+    unsigned char *m = (unsigned char*)malloc((size_t)X * Y);
+    int x, y;
+    for (y = 0; y < Y; y++)
+        for (x = 0; x < X; x++)
+            m[x * Y + y] = (Height[x * Y + y] >= level) ? 1 : 0;
+
+    memset(rgba, 0, (size_t)X * Y * 4);
+    for (y = 0; y < Y; y++) {
+        for (x = 0; x < X; x++) {
+            int idx = x * Y + y;
+            int xl, xr;
+            if (!m[idx]) continue;
+            xl = (x + X - 1) % X;
+            xr = (x + 1) % X;
+            if (y > 0 && !m[idx - 1]) goto hit;
+            if (y < Y - 1 && !m[idx + 1]) goto hit;
+            if (!m[xl * Y + y]) goto hit;
+            if (!m[xr * Y + y]) goto hit;
+            continue;
+        hit:
+            rgba[(y * X + x) * 4 + 3] = 255;
+        }
+    }
+    free(m);
+}
+
+/* 线性插值辅助(用于分层设色) */
+static void lerp(unsigned char *p, const float *c1, const float *c2, float t)
+{
+    int k;
+    for (k = 0; k < 3; k++) {
+        float v = c1[k] + (c2[k] - c1[k]) * t;
+        if (v < 0) v = 0;
+        if (v > 255) v = 255;
+        p[k] = (unsigned char)v;
+    }
+}
+
+/* 分层设色: 依高度相对海平面填充颜色(不透明 PNG) */
+static void render_color(unsigned char *rgba, int sealevel)
+{
+    int MinZ = 1, MaxZ = -1, x, y, i;
+    for (i = 0; i < X * Y; i++) {
+        if (Height[i] > MaxZ) MaxZ = Height[i];
+        if (Height[i] < MinZ) MinZ = Height[i];
+    }
+    if (MaxZ <= MinZ) MaxZ = MinZ + 1;
+
+    for (y = 0; y < Y; y++) {
+        for (x = 0; x < X; x++) {
+            int h = Height[x * Y + y];
+            unsigned char *p = rgba + (y * X + x) * 4;
+            if (h < sealevel) {
+                /* 海洋: 深度 0(海面)~1(最深) */
+                int denom = sealevel - MinZ;
+                float t = (denom > 0) ? (float)(sealevel - h) / denom : 1.0f;
+                if (t < 0.5f)
+                    lerp(p, (float[]){150, 200, 220}, (float[]){40, 90, 160}, t / 0.5f);
+                else
+                    lerp(p, (float[]){40, 90, 160}, (float[]){8, 16, 70}, (t - 0.5f) / 0.5f);
+            } else {
+                /* 陆地: 海拔 0(海面)~1(峰顶) */
+                int denom = MaxZ - sealevel;
+                float t = (denom > 0) ? (float)(h - sealevel) / denom : 0.0f;
+                if (t < 0.35f)
+                    lerp(p, (float[]){70, 160, 80},  (float[]){150, 190, 70},  t / 0.35f);
+                else if (t < 0.60f)
+                    lerp(p, (float[]){150, 190, 70}, (float[]){200, 170, 90}, (t - 0.35f) / 0.25f);
+                else if (t < 0.85f)
+                    lerp(p, (float[]){200, 170, 90}, (float[]){180, 120, 80}, (t - 0.60f) / 0.25f);
+                else
+                    lerp(p, (float[]){180, 120, 80}, (float[]){245, 240, 235}, (t - 0.85f) / 0.15f);
+            }
+            p[3] = 255;
+        }
+    }
+}
+
 /* ---------- PNG 输出 ---------- */
 
 static void put_be32(unsigned char *b, unsigned long v)
@@ -325,6 +413,8 @@ int main(int argc, char **argv)
     int seed, faults, water, w, h, line_width, smpass;
     int sealevel;
     int graticule = 0;
+    int slices = 0;                  /* 等高线切片数 (-c N) */
+    int fill = 0;                    /* 分层设色地图 (-fill) */
     unsigned char *rgba;
     const char *out;
     int i;
@@ -336,8 +426,11 @@ int main(int argc, char **argv)
     h          = (argc > 5) ? atoi(argv[5]) : 1440;
     line_width = (argc > 6) ? atoi(argv[6]) : 3;
     out        = (argc > 7) ? argv[7] : "地图_生成.png";
-    for (i = 1; i < argc; i++)
+    for (i = 1; i < argc; i++) {
         if (!strcmp(argv[i], "-g")) graticule = 1;
+        else if (!strcmp(argv[i], "-c") && i + 1 < argc) slices = atoi(argv[++i]);
+        else if (!strcmp(argv[i], "-fill") || !strcmp(argv[i], "-color")) fill = 1;
+    }
 
     if (faults <= 0) faults = (w / 10 < 60) ? 60 : w / 10;
     smpass = 2;   /* 高度图平滑次数 */
@@ -364,11 +457,43 @@ int main(int argc, char **argv)
     classify(sealevel);
 
     rgba = (unsigned char*)malloc((size_t)X * Y * 4);
-    trace_coast(rgba, line_width, graticule);
+    if (fill)
+        render_color(rgba, sealevel);          /* 分层设色地图 */
+    else
+        trace_coast(rgba, line_width, graticule); /* 黑色线条海岸线 */
 
     if (write_png(out, rgba, X, Y) == 0)
-        fprintf(stderr, "完成:%s (%dx%d, 种子=%d, 故障=%d, 水=%d%%, 线宽=%d, 海平面=%d)\n",
-                out, X, Y, seed, faults, water, line_width, sealevel);
+        fprintf(stderr, "完成:%s (%dx%d, 种子=%d, 故障=%d, 水=%d%%, 线宽=%d, 海平面=%d)%s\n",
+                out, X, Y, seed, faults, water, line_width, sealevel,
+                fill ? " [分层设色]" : "");
+
+    /* 等高线切片: 输出 N 张不同高度的切片,供后期合成等高线地图 */
+    if (slices > 0) {
+        int MinZ = 1, MaxZ = -1, k, prev;
+        char base[512], sname[600];
+
+        for (i = 0; i < X * Y; i++) {
+            if (Height[i] > MaxZ) MaxZ = Height[i];
+            if (Height[i] < MinZ) MinZ = Height[i];
+        }
+        if (MaxZ <= MinZ) MaxZ = MinZ + 1;
+
+        snprintf(base, sizeof(base), "%s", out);
+        {
+            size_t n = strlen(base);
+            if (n > 4 && !strcmp(base + n - 4, ".png")) base[n - 4] = '\0';
+        }
+        prev = -1;
+        for (k = 0; k < slices; k++) {
+            int level = MinZ + (int)((k + 1) * (double)(MaxZ - MinZ) / (slices + 1));
+            if (level == prev) continue;   /* 高度范围太窄时跳过重复 */
+            prev = level;
+            trace_contour(rgba, level);
+            snprintf(sname, sizeof(sname), "%s_切片_%02d.png", base, k + 1);
+            if (write_png(sname, rgba, X, Y) == 0)
+                fprintf(stderr, "切片 %02d:高度 %d -> %s\n", k + 1, level, sname);
+        }
+    }
 
     free(rgba); free(Land); free(Height); free(SinTable);
     return 0;
