@@ -9,12 +9,16 @@ find_package(Qt6 REQUIRED COMPONENTS Widgets Concurrent)
 
 qt_standard_project_setup()
 
+# Qt 资源(QSS 样式表 + 窗口图标)编译进二进制,避免运行时依赖工作目录
+qt_add_resources(WORLDGEN_QRC resources.qrc)
+
 add_executable(worldgen_gui
     main.cpp
     mainwindow.cpp
     mainwindow.h
     worldgen_core.c
     worldgen_core.h
+    ${WORLDGEN_QRC}
 )
 
 # macOS: 打包为 .app 应用包

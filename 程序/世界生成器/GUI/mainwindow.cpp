@@ -7,9 +7,11 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QFrame>
 #include <QFutureWatcher>
 #include <QGroupBox>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
@@ -40,10 +42,35 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
     setWindowTitle(QStringLiteral("地狱之下 - 地图生成器"));
+    setWindowIcon(QIcon(QStringLiteral(":/images/world-generator-icon.png")));
+
+    /* ---------- 顶部标题栏 ---------- */
+    auto *headerIcon = new QLabel(this);
+    headerIcon->setPixmap(QIcon(QStringLiteral(":/images/world-generator-icon.png")).pixmap(40, 40));
+    headerIcon->setFixedSize(44, 44);
+    auto *headerTitle = new QLabel(QStringLiteral("地狱之下 · 地图生成器"), this);
+    headerTitle->setObjectName(QStringLiteral("headerTitle"));
+    auto *headerSub = new QLabel(QStringLiteral("调整参数并预览生成的世界地图"), this);
+    headerSub->setObjectName(QStringLiteral("headerSubtitle"));
+    auto *headerText = new QVBoxLayout;
+    headerText->setSpacing(1);
+    headerText->setContentsMargins(0, 0, 0, 0);
+    headerText->addWidget(headerTitle);
+    headerText->addWidget(headerSub);
+    auto *header = new QHBoxLayout;
+    header->setSpacing(12);
+    header->setContentsMargins(0, 0, 0, 0);
+    header->addWidget(headerIcon, 0, Qt::AlignVCenter);
+    header->addLayout(headerText);
+    header->addStretch(1);
 
     /* ---------- 左侧:参数面板 ---------- */
     auto *paramBox = new QGroupBox(QStringLiteral("参数"), this);
     auto *form = new QFormLayout(paramBox);
+    form->setSpacing(10);
+    form->setContentsMargins(2, 8, 2, 2);
+    form->setLabelAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    form->setFormAlignment(Qt::AlignLeft | Qt::AlignTop);
 
     m_seed = new QSpinBox(paramBox);
     m_seed->setRange(0, 2000000000);
@@ -85,8 +112,11 @@ MainWindow::MainWindow(QWidget *parent)
     m_output = new QLineEdit(paramBox);
     m_output->setText(QStringLiteral("图片/地图_生成.png"));
     auto *browseBtn = new QPushButton(QStringLiteral("浏览…"), paramBox);
+    browseBtn->setCursor(Qt::PointingHandCursor);
     connect(browseBtn, &QPushButton::clicked, this, &MainWindow::browseOutput);
     auto *outRow = new QHBoxLayout;
+    outRow->setSpacing(6);
+    outRow->setContentsMargins(0, 0, 0, 0);
     outRow->addWidget(m_output, 1);
     outRow->addWidget(browseBtn);
 
@@ -102,38 +132,56 @@ MainWindow::MainWindow(QWidget *parent)
     form->addRow(QStringLiteral("输出路径"), outRow);
 
     auto *genBtn = new QPushButton(QStringLiteral("生成地图"), paramBox);
+    genBtn->setObjectName(QStringLiteral("primaryBtn"));
+    genBtn->setCursor(Qt::PointingHandCursor);
+    genBtn->setMinimumHeight(42);
     connect(genBtn, &QPushButton::clicked, this, &MainWindow::generate);
 
     auto *left = new QVBoxLayout;
+    left->setSpacing(12);
+    left->setContentsMargins(0, 0, 0, 0);
     left->addWidget(paramBox);
     left->addWidget(genBtn);
     left->addStretch(1);
 
-    /* ---------- 右侧:地图预览 ---------- */
+    /* ---------- 右侧:地图预览(白色卡片) ---------- */
     auto *scroll = new QScrollArea(this);
+    scroll->setObjectName(QStringLiteral("previewScroll"));
     scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->viewport()->setStyleSheet(QStringLiteral("background: transparent;"));
     m_mapLabel = new QLabel(scroll);
+    m_mapLabel->setObjectName(QStringLiteral("mapLabel"));
     m_mapLabel->setAlignment(Qt::AlignCenter);
     m_mapLabel->setText(QStringLiteral("尚未生成"));
     m_mapLabel->setMinimumSize(400, 300);
     scroll->setWidget(m_mapLabel);
 
-    /* ---------- 底部:日志 ---------- */
+    /* ---------- 底部:日志(深色控制台) ---------- */
     m_log = new QPlainTextEdit(this);
+    m_log->setObjectName(QStringLiteral("logView"));
     m_log->setReadOnly(true);
     m_log->setMaximumBlockCount(2000);
+    m_log->setMinimumHeight(110);
+    m_log->setMaximumHeight(180);
 
     auto *central = new QWidget(this);
-    auto *mainLayout = new QHBoxLayout;      /* 无父,交由 root 管理 */
-    mainLayout->addLayout(left);
+    auto *root = new QVBoxLayout(central);
+    root->setSpacing(14);
+    root->setContentsMargins(20, 18, 20, 16);
+
+    auto *mainLayout = new QHBoxLayout;
+    mainLayout->setSpacing(14);
+    mainLayout->setContentsMargins(0, 0, 0, 0);
+    mainLayout->addLayout(left, 0);
     mainLayout->addWidget(scroll, 1);
 
-    auto *root = new QVBoxLayout(central);
+    root->addLayout(header);
     root->addLayout(mainLayout, 1);
     root->addWidget(m_log, 0);
 
     setCentralWidget(central);
-    resize(1100, 760);
+    resize(1180, 800);
 
     /* ---------- 异步生成(worldgen 核心内嵌,后台线程执行) ---------- */
     m_watcher = new QFutureWatcher<int>(this);
