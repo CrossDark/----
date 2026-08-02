@@ -101,7 +101,7 @@ jobs:
       matrix:
         include:
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-24.04
             bin: build-gui/worldgen_gui
           - name: macOS
             os: macos-14
@@ -117,19 +117,19 @@ jobs:
         if: runner.os == 'macOS'
         run: brew install qt
 
-      - name: Install Qt (Linux)
+      # Ubuntu 24.04 自带 Qt 6.4,避免 aqtinstall 解析 Qt 在线仓库失败(qt_base)
+      - name: Install Qt (Linux, apt)
         if: runner.os == 'Linux'
-        run: |
-          python3 -m pip install --quiet aqtinstall
-          python3 -m aqt install-qt linux desktop ${{ env.QT_VERSION }} gcc_64 -O /opt/Qt
+        run: sudo apt-get install -y -qq qt6-base-dev
 
-      - name: Install Qt + MinGW (Windows)
+      # 编译器直接用 runner 预装的 Git for Windows mingw64(含 gcc/zlib),
+      # 不再依赖 aqtinstall 的 tools_mingw 模块
+      - name: Install Qt (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           python -m pip install --quiet aqtinstall
           python -m aqt install-qt windows desktop ${{ env.QT_VERSION }} win64_mingw -O C:/Qt
-          python -m aqt install-tool windows desktop tools_mingw qt.tools.win64_mingw1120 -O C:/Qt
 
       - name: Install build deps (Linux)
         if: runner.os == 'Linux'
@@ -137,25 +137,25 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq zlib1g-dev libgl1-mesa-dev libxkbcommon-dev libfontconfig1-dev libdbus-1-dev libglib2.0-dev libxcb1-dev libxcb-cursor-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
 
-      - name: Install zlib (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: vcpkg install zlib:x64-mingw-dynamic
-
       - name: Configure (macOS)
         if: runner.os == 'macOS'
         run: cmake -S 程序/世界生成器/GUI -B build-gui -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" -DCMAKE_OSX_ARCHITECTURES=arm64
 
       - name: Configure (Linux)
         if: runner.os == 'Linux'
-        run: cmake -S 程序/世界生成器/GUI -B build-gui -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=/opt/Qt/${{ env.QT_VERSION }}/gcc_64
+        run: cmake -S 程序/世界生成器/GUI -B build-gui -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Qt\Tools\mingw1120_64\bin;" + $env:PATH
-          cmake -S 程序/世界生成器/GUI -B build-gui -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/Qt/${{ env.QT_VERSION }}/mingw_64" -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic
+          $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
+          cmake -S 程序/世界生成器/GUI -B build-gui -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER="C:\Program Files\Git\mingw64\bin\gcc.exe" `
+            -DCMAKE_CXX_COMPILER="C:\Program Files\Git\mingw64\bin\g++.exe" `
+            -DCMAKE_PREFIX_PATH="C:/Qt/${{ env.QT_VERSION }}/mingw_64" `
+            -DZLIB_INCLUDE_DIR="C:\Program Files\Git\mingw64\include" `
+            -DZLIB_LIBRARY="C:\Program Files\Git\mingw64\lib\libz.a"
 
       - name: Build (macOS/Linux)
         if: runner.os != 'Windows'
@@ -165,7 +165,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Qt\Tools\mingw1120_64\bin;" + $env:PATH
+          $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
           cmake --build build-gui -j3
 
       - name: Package (.dmg, macOS)
@@ -180,10 +180,10 @@ jobs:
           wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
           wget -q https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
           chmod +x linuxdeploy*.AppImage
-          export PATH=/opt/Qt/${{ env.QT_VERSION }}/gcc_64/bin:$PATH
-          export LD_LIBRARY_PATH=/opt/Qt/${{ env.QT_VERSION }}/gcc_64/lib:$LD_LIBRARY_PATH
+          export PATH=/usr/lib/qt6/bin:$PATH
+          export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
           printf '%s\n' '[Desktop Entry]' 'Name=世界生成器' 'Comment=世界地图生成器' 'Exec=worldgen_gui' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
-          convert -size 64x64 xc:'#2c3e50' worldgen_gui.png
+          cp 程序/世界生成器/GUI/images/world-generator-icon.png worldgen_gui.png
           set +e
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run --appdir AppDir \
             --executable build-gui/worldgen_gui \
@@ -193,8 +193,11 @@ jobs:
           set -e
           if ls worldgen_gui-*.AppImage >/dev/null 2>&1; then
             mv worldgen_gui-*.AppImage 世界生成器_Linux_x86_64.AppImage
+          elif [ -d AppDir ]; then
+            echo "AppImage 打包失败,退回 AppDir 压缩包"
+            tar -czf 世界生成器_Linux_x86_64.tar.gz AppDir
           else
-            echo "AppImage 打包失败,退回 tar.gz"
+            echo "AppImage 打包失败,退回原始二进制"
             tar -czf 世界生成器_Linux_x86_64.tar.gz -C build-gui worldgen_gui
           fi
 
@@ -202,12 +205,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Qt\Tools\mingw1120_64\bin;C:\Qt\${{ env.QT_VERSION }}\mingw_64\bin;" + $env:PATH
-          windeployqt --no-translations build-gui/worldgen_gui.exe
-          Copy-Item C:\Qt\Tools\mingw1120_64\bin\libgcc_s_seh-1.dll build-gui\
-          Copy-Item C:\Qt\Tools\mingw1120_64\bin\libstdc++-6.dll build-gui\
-          Copy-Item C:\Qt\Tools\mingw1120_64\bin\libwinpthread-1.dll build-gui\
-          Copy-Item C:\vcpkg\installed\x64-mingw-dynamic\bin\zlib1.dll build-gui\
+          $env:PATH = "C:\Qt\${{ env.QT_VERSION }}\mingw_64\bin;C:\Program Files\Git\mingw64\bin;" + $env:PATH
+          windeployqt --no-translations --no-compiler-runtime build-gui/worldgen_gui.exe
+          Copy-Item "C:\Program Files\Git\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
+          Copy-Item "C:\Program Files\Git\mingw64\bin\libstdc++-6.dll" build-gui\
+          Copy-Item "C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll" build-gui\
           Compress-Archive -Path build-gui\* -DestinationPath 世界生成器_Windows_x86_64.zip
 
       - name: Upload artifact (macOS)
