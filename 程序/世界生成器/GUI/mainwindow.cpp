@@ -4,12 +4,14 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QDir>
+#include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
 #include <QFrame>
 #include <QFutureWatcher>
 #include <QGroupBox>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QIcon>
 #include <QLabel>
@@ -18,7 +20,9 @@
 #include <QPushButton>
 #include <QScrollArea>
 #include <QScrollBar>
+#include <QSettings>
 #include <QSpinBox>
+#include <QStyleHints>
 #include <QVBoxLayout>
 #include <QtConcurrent/QtConcurrent>
 
@@ -63,6 +67,13 @@ MainWindow::MainWindow(QWidget *parent)
     header->addWidget(headerIcon, 0, Qt::AlignVCenter);
     header->addLayout(headerText);
     header->addStretch(1);
+
+    /* 主题切换按钮(右上角):自动 / 浅色 / 深色 三态循环 */
+    m_themeBtn = new QPushButton(QStringLiteral("外观:自动"), this);
+    m_themeBtn->setObjectName(QStringLiteral("themeBtn"));
+    m_themeBtn->setCursor(Qt::PointingHandCursor);
+    connect(m_themeBtn, &QPushButton::clicked, this, &MainWindow::cycleTheme);
+    header->addWidget(m_themeBtn, 0, Qt::AlignVCenter);
 
     /* ---------- 左侧:参数面板 ---------- */
     auto *paramBox = new QGroupBox(QStringLiteral("参数"), this);
@@ -190,6 +201,17 @@ MainWindow::MainWindow(QWidget *parent)
 
     g_win = this;
     worldgen_set_log(coreLog);
+
+    /* 读取上次主题模式(0=自动, 1=浅色, 2=深色);默认自动 */
+    QSettings settings(QStringLiteral("com.crossdark.worldgen"), QStringLiteral("GUI"));
+    m_themeMode = settings.value(QStringLiteral("themeMode"), 0).toInt();
+    if (m_themeMode < 0 || m_themeMode > 2)
+        m_themeMode = 0;
+    applyTheme();
+
+    /* 监听系统外观实时变化(仅"自动"模式下生效) */
+    connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+            this, &MainWindow::onSystemColorSchemeChanged);
 }
 
 MainWindow::~MainWindow()
@@ -305,4 +327,46 @@ void MainWindow::loadImage(const QString &path)
     m_mapLabel->setPixmap(QPixmap::fromImage(scaled));
     m_mapLabel->setText(QString());
     appendLog(QStringLiteral("已加载: %1 (%2x%3)").arg(path).arg(img.width()).arg(img.height()));
+}
+
+/* 读取系统当前外观是否为深色 */
+bool MainWindow::isSystemDark() const
+{
+    return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+}
+
+/* 自动 / 浅色 / 深色 循环切换,并持久化模式 */
+void MainWindow::cycleTheme()
+{
+    m_themeMode = (m_themeMode + 1) % 3;   /* 0->1->2->0 */
+    applyTheme();
+    QSettings settings(QStringLiteral("com.crossdark.worldgen"), QStringLiteral("GUI"));
+    settings.setValue(QStringLiteral("themeMode"), m_themeMode);
+}
+
+/* 系统外观变化回调:仅在"自动"模式下实时跟随 */
+void MainWindow::onSystemColorSchemeChanged()
+{
+    if (m_themeMode == 0)
+        applyTheme();
+}
+
+/* 按 m_themeMode 决定实际深浅并应用 QSS,同步更新按钮文案 */
+void MainWindow::applyTheme()
+{
+    bool dark;
+    QString label;
+    switch (m_themeMode) {
+    case 1:  dark = false;               label = QStringLiteral("外观:浅色"); break;
+    case 2:  dark = true;                label = QStringLiteral("外观:深色"); break;
+    default: dark = isSystemDark();      label = QStringLiteral("外观:自动"); break;
+    }
+
+    const QString res = dark ? QStringLiteral(":/style-dark.qss")
+                             : QStringLiteral(":/style.qss");
+    QFile f(res);
+    if (f.open(QIODevice::ReadOnly | QIODevice::Text))
+        qApp->setStyleSheet(QString::fromUtf8(f.readAll()));
+
+    m_themeBtn->setText(label);
 }
