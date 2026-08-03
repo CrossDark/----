@@ -181,7 +181,7 @@ static void apply_dispersion(int dispersion)
 
     noise = (float*)malloc((size_t)noiseW * noiseH * sizeof(float));
     for (i = 0; i < noiseW * noiseH; i++)
-        noise[i] = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;  /* -1 ~ +1 */
+        noise[i] = (float)(rand() / (double)RAND_MAX * 2.0 - 1.0);  /* -1 ~ +1 */
 
     amp = (int)(range * strength * 0.5f);  /* 噪声振幅随离散度增大 */
     if (amp < 1) amp = 1;
