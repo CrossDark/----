@@ -1,6 +1,9 @@
 *.pdf
 dist/
+build/
 .venv/
+
+文档/dist
 
 程序/世界生成器/GUI/build
 程序/世界生成器/核心/worldgen

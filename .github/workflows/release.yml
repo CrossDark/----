@@ -11,7 +11,7 @@ env:
   QT_VERSION: 6.7.2
 
 jobs:
-  # ---------- PDF 文档(保持不变,仅路径随目录重组更新) ----------
+  # ---------- PDF 文档(保持不变) ----------
   pdf:
     name: PDF 文档
     runs-on: ubuntu-latest
@@ -37,7 +37,7 @@ jobs:
           path: 文档/dist/地狱之下.pdf
           if-no-files-found: error
 
-  # ---------- 命令行版 worldgen(三平台) ----------
+  # ---------- 命令行版 worldgen (三平台,统一 CMake: BUILD_GUI=OFF) ----------
   worldgen-cli:
     name: 命令行版 (${{ matrix.name }})
     strategy:
@@ -46,15 +46,15 @@ jobs:
         include:
           - name: Linux
             os: ubuntu-latest
-            out: worldgen
+            out: build-cli/worldgen
             art: worldgen-linux-x86_64
           - name: macOS
             os: macos-latest
-            out: worldgen
+            out: build-cli/worldgen
             art: worldgen-macos-arm64
           - name: Windows
             os: windows-latest
-            out: worldgen.exe
+            out: build-cli/worldgen.exe
             art: worldgen-windows-x86_64
     runs-on: ${{ matrix.os }}
     steps:
@@ -72,19 +72,22 @@ jobs:
           $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
           vcpkg install zlib:x64-mingw-dynamic
 
-      - name: Build (Linux/macOS)
+      - name: Configure CLI (Linux/macOS)
         if: runner.os != 'Windows'
-        run: cc -O3 程序/世界生成器/核心/worldgen.c -lm -lz -o ${{ matrix.out }}
+        run: cmake -S 程序/世界生成器 -B build-cli -DCMAKE_BUILD_TYPE=Release
 
-      - name: Build (Windows)
+      - name: Configure CLI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
-          gcc -O3 "程序/世界生成器/核心/worldgen.c" `
-            -I"C:\vcpkg\installed\x64-mingw-dynamic\include" `
-            -L"C:\vcpkg\installed\x64-mingw-dynamic\lib" `
-            -lz -lm -o ${{ matrix.out }}
+          cmake -S 程序/世界生成器 -B build-cli -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_C_COMPILER="C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\gcc.exe" `
+            -DZLIB_INCLUDE_DIR="C:\vcpkg\installed\x64-mingw-dynamic\include" `
+            -DZLIB_LIBRARY="C:\vcpkg\installed\x64-mingw-dynamic\lib\libz.dll.a"
+
+      - name: Build CLI
+        run: cmake --build build-cli -j3
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -93,7 +96,7 @@ jobs:
           path: ${{ matrix.out }}
           if-no-files-found: error
 
-  # ---------- GUI 图形版(三平台) ----------
+  # ---------- GUI 图形版(三平台,统一 CMake: BUILD_GUI=ON) ----------
   worldgen-gui:
     name: GUI (${{ matrix.name }})
     strategy:
@@ -137,31 +140,31 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq zlib1g-dev libgl1-mesa-dev libxkbcommon-dev libfontconfig1-dev libdbus-1-dev libglib2.0-dev libxcb1-dev libxcb-cursor-dev libxcb-icccm4-dev libxcb-image0-dev libxcb-keysyms1-dev libxcb-randr0-dev libxcb-render-util0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxcb-xinerama0-dev
 
-      - name: Configure (macOS)
+      - name: Configure GUI (macOS)
         if: runner.os == 'macOS'
-        run: cmake -S 程序/世界生成器/GUI -B build-gui -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" -DCMAKE_OSX_ARCHITECTURES=arm64
+        run: cmake -S 程序/世界生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" -DCMAKE_OSX_ARCHITECTURES=arm64
 
-      - name: Configure (Linux)
+      - name: Configure GUI (Linux)
         if: runner.os == 'Linux'
-        run: cmake -S 程序/世界生成器/GUI -B build-gui -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S 程序/世界生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release
 
-      - name: Configure (Windows)
+      - name: Configure GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
-          cmake -S 程序/世界生成器/GUI -B build-gui -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release `
+          cmake -S 程序/世界生成器 -B build-gui -G "MinGW Makefiles" -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="C:\Program Files\Git\mingw64\bin\gcc.exe" `
             -DCMAKE_CXX_COMPILER="C:\Program Files\Git\mingw64\bin\g++.exe" `
             -DCMAKE_PREFIX_PATH="C:/Qt/${{ env.QT_VERSION }}/mingw_64" `
             -DZLIB_INCLUDE_DIR="C:\Program Files\Git\mingw64\include" `
             -DZLIB_LIBRARY="C:\Program Files\Git\mingw64\lib\libz.a"
 
-      - name: Build (macOS/Linux)
+      - name: Build GUI (macOS/Linux)
         if: runner.os != 'Windows'
         run: cmake --build build-gui -j3
 
-      - name: Build (Windows)
+      - name: Build GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -183,7 +186,7 @@ jobs:
           export PATH=/usr/lib/qt6/bin:$PATH
           export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
           printf '%s\n' '[Desktop Entry]' 'Name=世界生成器' 'Comment=世界地图生成器' 'Exec=worldgen_gui' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
-          cp 程序/世界生成器/GUI/images/world-generator-icon.png worldgen_gui.png
+          cp 程序/世界生成器/src/gui/images/world-generator-icon.png worldgen_gui.png
           set +e
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run --appdir AppDir \
             --executable build-gui/worldgen_gui \
