@@ -114,6 +114,12 @@ MainWindow::MainWindow(QWidget *parent)
     m_water->setValue(65);
     m_water->setSuffix(QStringLiteral(" %"));
 
+    m_dispersion = new QSpinBox(paramBox);
+    m_dispersion->setRange(0, 100);
+    m_dispersion->setValue(0);
+    m_dispersion->setSuffix(QStringLiteral(" %"));
+    m_dispersion->setToolTip(QStringLiteral("0=大片大陆, 100=分散群岛"));
+
     m_width = new QSpinBox(paramBox);
     m_width->setRange(128, 8192);
     m_width->setSingleStep(256);
@@ -150,6 +156,7 @@ MainWindow::MainWindow(QWidget *parent)
     form->addRow(QStringLiteral("种子"), seedRow);
     form->addRow(QStringLiteral("故障次数"), m_faults);
     form->addRow(QStringLiteral("水占比"), m_water);
+    form->addRow(QStringLiteral("离散度"), m_dispersion);
     form->addRow(QStringLiteral("宽度"), m_width);
     form->addRow(QStringLiteral("高度"), m_height);
     form->addRow(QStringLiteral("线宽"), m_lineWidth);
@@ -281,6 +288,7 @@ void MainWindow::generate()
     const int seed      = m_seed->value();
     const int faults    = m_faults->value();
     const int water     = m_water->value();
+    const int disp      = m_dispersion->value();
     const int w         = m_width->value();
     const int h         = m_height->value();
     const int lw        = m_lineWidth->value();
@@ -292,10 +300,12 @@ void MainWindow::generate()
     if (grid) tags << QStringLiteral("[经纬网格]");
     if (slices > 0) tags << QStringLiteral("切片%1").arg(slices);
     if (fill) tags << QStringLiteral("[分层设色]");
-    appendLog(QStringLiteral("开始生成: 种子=%1 故障=%2 水=%3% %4x%5 线宽=%6 -> %7 %8")
+    if (disp > 0) tags << QStringLiteral("离散%1%").arg(disp);
+    appendLog(QStringLiteral("开始生成: 种子=%1 故障=%2 水=%3% 离散=%4% %5x%6 线宽=%7 -> %8 %9")
                   .arg(seed)
                   .arg(faults)
                   .arg(water)
+                  .arg(disp)
                   .arg(w)
                   .arg(h)
                   .arg(lw)
@@ -305,9 +315,9 @@ void MainWindow::generate()
     /* UTF-8 路径必须在此线程内转成字节并随 lambda 存活 */
     QByteArray out8 = outPath.toUtf8();
 
-    auto future = QtConcurrent::run([seed, faults, water, w, h, lw,
+    auto future = QtConcurrent::run([seed, faults, water, disp, w, h, lw,
                                      grid, slices, fill, out8]() {
-        return worldgen_run(seed, faults, water, w, h, lw,
+        return worldgen_run(seed, faults, water, disp, w, h, lw,
                             grid, slices, fill, out8.constData());
     });
     m_watcher->setFuture(future);

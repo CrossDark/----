@@ -156,6 +156,61 @@ static void smooth_height(int passes)
     free(tmp);
 }
 
+/* 离散度变换: 向高度图注入中频噪声,打碎大陆形成分散群岛
+ * dispersion: 0(大陆) ~ 100(群岛)
+ * 原理: 生成低分辨率噪声网格,双线性插值到全分辨率后叠加到高度图 */
+static void apply_dispersion(int dispersion)
+{
+    int MinZ = 1, MaxZ = -1, i, x, y;
+    int noiseW, noiseH, amp;
+    float *noise, strength, range;
+
+    if (dispersion <= 0) return;
+    strength = dispersion / 100.0f;
+
+    for (i = 0; i < X * Y; i++) {
+        if (Height[i] > MaxZ) MaxZ = Height[i];
+        if (Height[i] < MinZ) MinZ = Height[i];
+    }
+    range = (float)(MaxZ - MinZ);
+    if (range <= 0) return;
+
+    /* 噪声分辨率: 约为地图的 1/16,保证中频特征 */
+    noiseW = X / 16; if (noiseW < 4) noiseW = 4;
+    noiseH = Y / 16; if (noiseH < 4) noiseH = 4;
+
+    noise = (float*)malloc((size_t)noiseW * noiseH * sizeof(float));
+    for (i = 0; i < noiseW * noiseH; i++)
+        noise[i] = ((float)rand() / RAND_MAX) * 2.0f - 1.0f;  /* -1 ~ +1 */
+
+    amp = (int)(range * strength * 0.5f);  /* 噪声振幅随离散度增大 */
+    if (amp < 1) amp = 1;
+
+    for (y = 0; y < Y; y++) {
+        float fy = (float)y / Y * noiseH;
+        int ny0 = (int)fy % noiseH;
+        float ty = fy - (int)fy;
+        int ny1 = (ny0 + 1) % noiseH;
+        for (x = 0; x < X; x++) {
+            float fx = (float)x / X * noiseW;
+            int nx0 = (int)fx % noiseW;
+            float tx = fx - (int)fx;
+            int nx1 = (nx0 + 1) % noiseW;
+
+            float n00 = noise[ny0 * noiseW + nx0];
+            float n01 = noise[ny0 * noiseW + nx1];
+            float n10 = noise[ny1 * noiseW + nx0];
+            float n11 = noise[ny1 * noiseW + nx1];
+            float n0 = n00 * (1.0f - tx) + n01 * tx;
+            float n1 = n10 * (1.0f - tx) + n11 * tx;
+            float n  = n0 * (1.0f - ty) + n1 * ty;
+
+            Height[x * Y + y] += (int)(n * amp);
+        }
+    }
+    free(noise);
+}
+
 /* ---------- 海平面与海陆分类 ---------- */
 
 static int compute_sealevel(int percent_water)
@@ -427,7 +482,8 @@ static int write_png(const char *path, const unsigned char *rgba, int w, int h)
 /* ---------- 主程序 ---------- */
 
 /* 供 GUI 调用的入口:显式参数,替代原命令行 main() */
-int worldgen_run(int seed, int faults, int water, int w, int h, int line_width,
+int worldgen_run(int seed, int faults, int water, int dispersion,
+                 int w, int h, int line_width,
                  int graticule, int slices, int fill, const char *out)
 {
     int smpass;
@@ -436,7 +492,11 @@ int worldgen_run(int seed, int faults, int water, int w, int h, int line_width,
     int i;
 
     if (faults <= 0) faults = (w / 10 < 60) ? 60 : w / 10;
-    smpass = 2;   /* 高度图平滑次数 */
+    /* 离散度越低,平滑次数越多(融合大陆);越高越少(保留碎片) */
+    smpass = 2;
+    if (dispersion < 50) smpass += (50 - dispersion) / 13;  /* 2→5 */
+    if (dispersion > 50) smpass -= (dispersion - 50) / 50;  /* 2→1 */
+    if (smpass < 1) smpass = 1;
 
     if (w < 2 || h < 2) { log_msg("尺寸过小\n"); return 1; }
     if (line_width < 1) line_width = 1;
@@ -456,6 +516,9 @@ int worldgen_run(int seed, int faults, int water, int w, int h, int line_width,
 
     gen_map(faults);
     smooth_height(smpass);
+    apply_dispersion(dispersion);
+    /* 噪声注入后再做一次轻平滑,避免海岸线锯齿 */
+    if (dispersion > 0) smooth_height(1);
     sealevel = compute_sealevel(water);
     classify(sealevel);
 
@@ -470,8 +533,8 @@ int worldgen_run(int seed, int faults, int water, int w, int h, int line_width,
         free(rgba); free(Land); free(Height); free(SinTable);
         return 1;
     }
-    log_msg("完成:%s (%dx%d, 种子=%d, 故障=%d, 水=%d%%, 线宽=%d, 海平面=%d)%s\n",
-            out, X, Y, seed, faults, water, line_width, sealevel,
+    log_msg("完成:%s (%dx%d, 种子=%d, 故障=%d, 水=%d%%, 离散=%d, 线宽=%d, 海平面=%d)%s\n",
+            out, X, Y, seed, faults, water, dispersion, line_width, sealevel,
             fill ? " [分层设色]" : "");
 
     /* 等高线切片: 输出 N 张不同高度的切片,供后期合成等高线地图 */

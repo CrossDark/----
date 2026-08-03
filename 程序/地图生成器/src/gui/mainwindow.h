@@ -35,6 +35,7 @@ private:
     QSpinBox      *m_seed;
     QSpinBox      *m_faults;
     QSpinBox      *m_water;
+    QSpinBox      *m_dispersion;
     QSpinBox      *m_width;
     QSpinBox      *m_height;
     QSpinBox      *m_lineWidth;
