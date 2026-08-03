@@ -145,6 +145,7 @@ if(BUILD_GUI)
         )
     endif()
     set_target_properties(worldgen_gui PROPERTIES
+        OUTPUT_NAME "地图生成器"
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.crossdark.worldgen"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/src/gui/Info.plist"
@@ -178,6 +179,7 @@ else()
     )
 
     target_include_directories(worldgen PRIVATE src/core src/cli)
+    set_target_properties(worldgen PROPERTIES OUTPUT_NAME "地图生成器")
     target_link_libraries(worldgen PRIVATE ZLIB::ZLIB)
     if(UNIX)
         target_link_libraries(worldgen PRIVATE m)

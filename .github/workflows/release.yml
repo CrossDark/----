@@ -85,16 +85,16 @@ jobs:
         include:
           - name: Linux
             os: ubuntu-latest
-            out: build-cli/worldgen
-            release_file: worldgen-linux-x86_64
+            out: build-cli/地图生成器
+            release_file: 地图生成器-linux-x86_64
           - name: macOS
             os: macos-latest
-            out: build-cli/worldgen
-            release_file: worldgen-macos-arm64
+            out: build-cli/地图生成器
+            release_file: 地图生成器-macos-arm64
           - name: Windows
             os: windows-latest
-            out: build-cli/worldgen.exe
-            release_file: worldgen-windows-x86_64.exe
+            out: build-cli/地图生成器.exe
+            release_file: 地图生成器-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -222,8 +222,8 @@ jobs:
       - name: Package & Upload (macOS)
         if: runner.os == 'macOS'
         run: |
-          "$(brew --prefix qt)/bin/macdeployqt" build-gui/worldgen_gui.app -always-overwrite
-          hdiutil create -volname "地图生成器" -srcfolder build-gui/worldgen_gui.app -ov -format UDZO 地图生成器_macOS_arm64.dmg
+          "$(brew --prefix qt)/bin/macdeployqt" build-gui/地图生成器.app -always-overwrite
+          hdiutil create -volname "地图生成器" -srcfolder build-gui/地图生成器.app -ov -format UDZO 地图生成器_macOS_arm64.dmg
           gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_macOS_arm64.dmg" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -236,11 +236,11 @@ jobs:
           chmod +x linuxdeploy*.AppImage
           export PATH=/usr/lib/qt6/bin:$PATH
           export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
-          printf '%s\n' '[Desktop Entry]' 'Name=地图生成器' 'Comment=地图生成器' 'Exec=worldgen_gui' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
+          printf '%s\n' '[Desktop Entry]' 'Name=地图生成器' 'Comment=地图生成器' 'Exec=地图生成器' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
           cp 程序/地图生成器/src/gui/images/world-generator-icon.png worldgen_gui.png
           set +e
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run --appdir AppDir \
-            --executable build-gui/worldgen_gui \
+            --executable build-gui/地图生成器 \
             --desktop-file worldgen_gui.desktop \
             --icon-file worldgen_gui.png \
             --plugin qt --output appimage
@@ -250,7 +250,7 @@ jobs:
             gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.AppImage" --clobber
           else
             echo "AppImage 打包失败,退回压缩包"
-            tar -czf 地图生成器_Linux_x86_64.tar.gz -C build-gui worldgen_gui
+            tar -czf 地图生成器_Linux_x86_64.tar.gz -C build-gui 地图生成器
             gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.tar.gz" --clobber
           fi
         env:
@@ -261,7 +261,7 @@ jobs:
         shell: pwsh
         run: |
           $env:PATH = "C:\Qt\${{ env.QT_VERSION }}\mingw_64\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
-          windeployqt --no-translations --no-compiler-runtime build-gui/worldgen_gui.exe
+          windeployqt --no-translations --no-compiler-runtime build-gui/地图生成器.exe
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libstdc++-6.dll" build-gui\
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libwinpthread-1.dll" build-gui\
