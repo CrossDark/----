@@ -245,6 +245,7 @@ jobs:
   release:
     name: 发布
     needs: [pdf, worldgen-cli, worldgen-gui]
+    if: ${{ !cancelled() && needs.pdf.result == 'success' && needs.worldgen-cli.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write

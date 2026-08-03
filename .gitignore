@@ -1,6 +1,7 @@
 *.pdf
 dist/
 build/
+build-gui/
 .venv/
 
 文档/dist
