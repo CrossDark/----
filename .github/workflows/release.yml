@@ -115,14 +115,14 @@ jobs:
 
       - name: Configure CLI (Linux/macOS)
         if: runner.os != 'Windows'
-        run: cmake -S 程序/世界生成器 -B build-cli -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S 程序/地图生成器 -B build-cli -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure CLI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
-          cmake -S 程序/世界生成器 -B build-cli -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release `
+          cmake -S 程序/地图生成器 -B build-cli -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\gcc.exe" `
             -DZLIB_INCLUDE_DIR="C:\vcpkg\installed\x64-mingw-dynamic\include" `
             -DZLIB_LIBRARY="C:\vcpkg\installed\x64-mingw-dynamic\lib\libz.dll.a"
@@ -184,18 +184,18 @@ jobs:
 
       - name: Configure GUI (macOS)
         if: runner.os == 'macOS'
-        run: cmake -S 程序/世界生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" -DCMAKE_OSX_ARCHITECTURES=arm64
+        run: cmake -S 程序/地图生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$(brew --prefix qt)" -DCMAKE_OSX_ARCHITECTURES=arm64
 
       - name: Configure GUI (Linux)
         if: runner.os == 'Linux'
-        run: cmake -S 程序/世界生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release
+        run: cmake -S 程序/地图生成器 -B build-gui -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release
 
       - name: Configure GUI (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
-          cmake -S 程序/世界生成器 -B build-gui -G "MinGW Makefiles" -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release `
+          cmake -S 程序/地图生成器 -B build-gui -G "MinGW Makefiles" -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release `
             -DCMAKE_C_COMPILER="C:\Program Files\Git\mingw64\bin\gcc.exe" `
             -DCMAKE_CXX_COMPILER="C:\Program Files\Git\mingw64\bin\g++.exe" `
             -DCMAKE_PREFIX_PATH="C:/Qt/${{ env.QT_VERSION }}/mingw_64" `
@@ -217,8 +217,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           "$(brew --prefix qt)/bin/macdeployqt" build-gui/worldgen_gui.app -always-overwrite
-          hdiutil create -volname "世界生成器" -srcfolder build-gui/worldgen_gui.app -ov -format UDZO 世界生成器_macOS_arm64.dmg
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" "世界生成器_macOS_arm64.dmg" --clobber
+          hdiutil create -volname "地图生成器" -srcfolder build-gui/worldgen_gui.app -ov -format UDZO 地图生成器_macOS_arm64.dmg
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_macOS_arm64.dmg" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -230,8 +230,8 @@ jobs:
           chmod +x linuxdeploy*.AppImage
           export PATH=/usr/lib/qt6/bin:$PATH
           export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu:$LD_LIBRARY_PATH
-          printf '%s\n' '[Desktop Entry]' 'Name=世界生成器' 'Comment=世界地图生成器' 'Exec=worldgen_gui' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
-          cp 程序/世界生成器/src/gui/images/world-generator-icon.png worldgen_gui.png
+          printf '%s\n' '[Desktop Entry]' 'Name=地图生成器' 'Comment=地图生成器' 'Exec=worldgen_gui' 'Icon=worldgen_gui' 'Type=Application' 'Categories=Utility;Graphics;' > worldgen_gui.desktop
+          cp 程序/地图生成器/src/gui/images/world-generator-icon.png worldgen_gui.png
           set +e
           ./linuxdeploy-x86_64.AppImage --appimage-extract-and-run --appdir AppDir \
             --executable build-gui/worldgen_gui \
@@ -240,12 +240,12 @@ jobs:
             --plugin qt --output appimage
           set -e
           if ls worldgen_gui-*.AppImage >/dev/null 2>&1; then
-            mv worldgen_gui-*.AppImage 世界生成器_Linux_x86_64.AppImage
-            gh release upload "${{ needs.create-release.outputs.tag_name }}" "世界生成器_Linux_x86_64.AppImage" --clobber
+            mv worldgen_gui-*.AppImage 地图生成器_Linux_x86_64.AppImage
+            gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.AppImage" --clobber
           else
             echo "AppImage 打包失败,退回压缩包"
-            tar -czf 世界生成器_Linux_x86_64.tar.gz -C build-gui worldgen_gui
-            gh release upload "${{ needs.create-release.outputs.tag_name }}" "世界生成器_Linux_x86_64.tar.gz" --clobber
+            tar -czf 地图生成器_Linux_x86_64.tar.gz -C build-gui worldgen_gui
+            gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.tar.gz" --clobber
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -259,7 +259,7 @@ jobs:
           Copy-Item "C:\Program Files\Git\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
           Copy-Item "C:\Program Files\Git\mingw64\bin\libstdc++-6.dll" build-gui\
           Copy-Item "C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll" build-gui\
-          Compress-Archive -Path build-gui\* -DestinationPath 世界生成器_Windows_x86_64.zip
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" "世界生成器_Windows_x86_64.zip" --clobber
+          Compress-Archive -Path build-gui\* -DestinationPath 地图生成器_Windows_x86_64.zip
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Windows_x86_64.zip" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

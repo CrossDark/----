@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 # =====================================================================
-# 世界生成器 - 统一构建脚本
+# 地图生成器 - 统一构建脚本
 # 通过 CMake 选项切换 CLI / GUI 两种产物,核心算法代码共用一套
 #
 # 用法:
@@ -148,7 +148,7 @@ if(BUILD_GUI)
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER "com.crossdark.worldgen"
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/src/gui/Info.plist"
-        MACOSX_BUNDLE_BUNDLE_NAME "世界生成器"
+        MACOSX_BUNDLE_BUNDLE_NAME "地图生成器"
         MACOSX_BUNDLE_BUNDLE_VERSION "1.0"
         MACOSX_BUNDLE_SHORT_VERSION_STRING "1.0"
         MACOSX_BUNDLE_ICON_FILE "world-generator-icon.icns"

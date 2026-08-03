@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
     <key>CFBundleName</key>
-    <string>世界生成器</string>
+    <string>地图生成器</string>
     <key>CFBundleDisplayName</key>
-    <string>世界生成器</string>
+    <string>地图生成器</string>
     <key>CFBundleExecutable</key>
     <string>worldgen_gui</string>
     <key>CFBundleIdentifier</key>
