@@ -225,9 +225,11 @@ MainWindow::MainWindow(QWidget *parent)
         m_themeMode = 0;
     applyTheme();
 
-    /* 监听系统外观实时变化(仅"自动"模式下生效) */
+    /* 监听系统外观实时变化(仅"自动"模式下生效,需 Qt >= 6.5) */
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
             this, &MainWindow::onSystemColorSchemeChanged);
+#endif
 }
 
 MainWindow::~MainWindow()
@@ -348,7 +350,14 @@ void MainWindow::loadImage(const QString &path)
 /* 读取系统当前外观是否为深色 */
 bool MainWindow::isSystemDark() const
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+#else
+    /* Qt < 6.5 回退:通过调色板文字/窗口亮度比判断 */
+    const auto pal = palette();
+    return pal.color(QPalette::WindowText).lightness() >
+           pal.color(QPalette::Window).lightness();
+#endif
 }
 
 /* 自动 / 浅色 / 深色 循环切换,并持久化模式 */
