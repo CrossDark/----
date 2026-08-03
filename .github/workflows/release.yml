@@ -167,14 +167,20 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get install -y -qq qt6-base-dev
 
-      # 编译器直接用 runner 预装的 Git for Windows mingw64(含 gcc/zlib),
-      # 不再依赖 aqtinstall 的 tools_mingw 模块
+      # 编译器: choco mingw (含 gcc/g++); Qt: aqtinstall; zlib: vcpkg
       - name: Install Qt (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
           python -m pip install --quiet aqtinstall
           python -m aqt install-qt windows desktop ${{ env.QT_VERSION }} win64_mingw -O C:/Qt
+
+      - name: Install MinGW + zlib (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install mingw -y --no-progress
+          vcpkg install zlib:x64-mingw-dynamic
 
       - name: Install build deps (Linux)
         if: runner.os == 'Linux'
@@ -194,13 +200,13 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
+          $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
           cmake -S 程序/地图生成器 -B build-gui -G "MinGW Makefiles" -DBUILD_GUI=ON -DCMAKE_BUILD_TYPE=Release `
-            -DCMAKE_C_COMPILER="C:\Program Files\Git\mingw64\bin\gcc.exe" `
-            -DCMAKE_CXX_COMPILER="C:\Program Files\Git\mingw64\bin\g++.exe" `
+            -DCMAKE_C_COMPILER="C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\gcc.exe" `
+            -DCMAKE_CXX_COMPILER="C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\g++.exe" `
             -DCMAKE_PREFIX_PATH="C:/Qt/${{ env.QT_VERSION }}/mingw_64" `
-            -DZLIB_INCLUDE_DIR="C:\Program Files\Git\mingw64\include" `
-            -DZLIB_LIBRARY="C:\Program Files\Git\mingw64\lib\libz.a"
+            -DZLIB_INCLUDE_DIR="C:\vcpkg\installed\x64-mingw-dynamic\include" `
+            -DZLIB_LIBRARY="C:\vcpkg\installed\x64-mingw-dynamic\lib\libz.dll.a"
 
       - name: Build GUI (macOS/Linux)
         if: runner.os != 'Windows'
@@ -210,7 +216,7 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Program Files\Git\mingw64\bin;" + $env:PATH
+          $env:PATH = "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
           cmake --build build-gui -j3
 
       - name: Package & Upload (macOS)
@@ -254,11 +260,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          $env:PATH = "C:\Qt\${{ env.QT_VERSION }}\mingw_64\bin;C:\Program Files\Git\mingw64\bin;" + $env:PATH
+          $env:PATH = "C:\Qt\${{ env.QT_VERSION }}\mingw_64\bin;C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin;" + $env:PATH
           windeployqt --no-translations --no-compiler-runtime build-gui/worldgen_gui.exe
-          Copy-Item "C:\Program Files\Git\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
-          Copy-Item "C:\Program Files\Git\mingw64\bin\libstdc++-6.dll" build-gui\
-          Copy-Item "C:\Program Files\Git\mingw64\bin\libwinpthread-1.dll" build-gui\
+          Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
+          Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libstdc++-6.dll" build-gui\
+          Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libwinpthread-1.dll" build-gui\
           Compress-Archive -Path build-gui\* -DestinationPath 地图生成器_Windows_x86_64.zip
           gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Windows_x86_64.zip" --clobber
         env:
