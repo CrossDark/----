@@ -1,4 +1,4 @@
-#import "@preview/dragonling:0.3.1": *
+#import "../模板/lib.typ": *
 
 == 关于"地狱"与"深渊"
 

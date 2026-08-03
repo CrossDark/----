@@ -1,4 +1,4 @@
-#import "@preview/dragonling:0.3.1": *
+#import "../模板/lib.typ": *
 
 #show: dndmodule.with(
   title: "地狱之下",
@@ -6,44 +6,9 @@
   author: "跨越晨昏",
 )
 
-#set text(lang: "zh", font: (
-  "等距更紗黑體 CL",
-  "Noto Sans CJK SC",
-  "WenQuanYi Micro Hei",
-))
-
 #set heading(numbering: "1.")
 
 #outline()
-
-// 修复标题编号:dragonling 模板的 dndmodule 内部 show heading 规则丢弃了标题编号,
-// 此处覆盖该规则以恢复编号,并按层级调整字号
-#show heading: it => {
-  let lvl = it.level
-  counter(heading).step(lvl)
-  let nums = counter(heading).get().slice(0, lvl)
-  let shown = if it.numbering != none {
-    numbering(it.numbering, nums)
-  } else {
-    ""
-  }
-  let body = smallcaps([#shown #it.body])
-  let size = if lvl <= 1 {
-    1.6em
-  } else if lvl == 2 {
-    1.4em
-  } else if lvl == 3 {
-    1.2em
-  } else {
-    1.1em
-  }
-  if lvl == 2 {
-    block(text(size: size, fill: darkred, weight: "regular",
-      box(width: 100%, inset: (bottom: 4pt), stroke: (bottom: 1pt + darkyellow))[#body]))
-  } else {
-    block(text(size: size, fill: darkred, weight: "regular", body))
-  }
-}
 
 = 星球
 
