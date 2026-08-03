@@ -71,7 +71,9 @@ jobs:
         run: make -C 文档 all
 
       - name: 上传到发行版
-        run: gh release upload "${{ needs.create-release.outputs.tag_name }}" "文档/dist/地狱之下.pdf" --clobber
+        run: |
+          cp "文档/dist/地狱之下.pdf" "UnderHell.pdf"
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" "UnderHell.pdf" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -86,15 +88,15 @@ jobs:
           - name: Linux
             os: ubuntu-latest
             out: build-cli/地图生成器
-            release_file: 地图生成器-linux-x86_64
+            release_file: mapgen-cli-linux-x86_64
           - name: macOS
             os: macos-latest
             out: build-cli/地图生成器
-            release_file: 地图生成器-macos-arm64
+            release_file: mapgen-cli-macos-arm64
           - name: Windows
             os: windows-latest
             out: build-cli/地图生成器.exe
-            release_file: 地图生成器-windows-x86_64.exe
+            release_file: mapgen-cli-windows-x86_64.exe
     runs-on: ${{ matrix.os }}
     permissions:
       contents: write
@@ -223,8 +225,8 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           "$(brew --prefix qt)/bin/macdeployqt" build-gui/地图生成器.app -always-overwrite
-          hdiutil create -volname "地图生成器" -srcfolder build-gui/地图生成器.app -ov -format UDZO 地图生成器_macOS_arm64.dmg
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_macOS_arm64.dmg" --clobber
+          hdiutil create -volname "地图生成器" -srcfolder build-gui/地图生成器.app -ov -format UDZO mapgen-gui-macos-arm64.dmg
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" "mapgen-gui-macos-arm64.dmg" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -246,12 +248,12 @@ jobs:
             --plugin qt --output appimage
           set -e
           if ls worldgen_gui-*.AppImage >/dev/null 2>&1; then
-            mv worldgen_gui-*.AppImage 地图生成器_Linux_x86_64.AppImage
-            gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.AppImage" --clobber
+            mv worldgen_gui-*.AppImage mapgen-gui-linux-x86_64.AppImage
+            gh release upload "${{ needs.create-release.outputs.tag_name }}" "mapgen-gui-linux-x86_64.AppImage" --clobber
           else
             echo "AppImage 打包失败,退回压缩包"
-            tar -czf 地图生成器_Linux_x86_64.tar.gz -C build-gui 地图生成器
-            gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Linux_x86_64.tar.gz" --clobber
+            tar -czf mapgen-gui-linux-x86_64.tar.gz -C build-gui 地图生成器
+            gh release upload "${{ needs.create-release.outputs.tag_name }}" "mapgen-gui-linux-x86_64.tar.gz" --clobber
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -265,7 +267,7 @@ jobs:
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libgcc_s_seh-1.dll" build-gui\
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libstdc++-6.dll" build-gui\
           Copy-Item "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin\libwinpthread-1.dll" build-gui\
-          Compress-Archive -Path build-gui\* -DestinationPath 地图生成器_Windows_x86_64.zip
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" "地图生成器_Windows_x86_64.zip" --clobber
+          Compress-Archive -Path build-gui\* -DestinationPath mapgen-gui-windows-x86_64.zip
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" "mapgen-gui-windows-x86_64.zip" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
