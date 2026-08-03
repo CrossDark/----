@@ -1,7 +1,5 @@
 #import "@preview/dragonling:0.3.1": *
 
-#set heading(numbering: "A.1.")
-
 == 关于"地狱"与"深渊"
 
 #dndtab("地名辨析", [

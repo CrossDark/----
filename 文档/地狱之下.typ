@@ -12,12 +12,38 @@
   "WenQuanYi Micro Hei",
 ))
 
-
-
+#set heading(numbering: "1.")
 
 #outline()
 
-#set heading(numbering: "1.")
+// 修复标题编号:dragonling 模板的 dndmodule 内部 show heading 规则丢弃了标题编号,
+// 此处覆盖该规则以恢复编号,并按层级调整字号
+#show heading: it => {
+  let lvl = it.level
+  counter(heading).step(lvl)
+  let nums = counter(heading).get().slice(0, lvl)
+  let shown = if it.numbering != none {
+    numbering(it.numbering, nums)
+  } else {
+    ""
+  }
+  let body = smallcaps([#shown #it.body])
+  let size = if lvl <= 1 {
+    1.6em
+  } else if lvl == 2 {
+    1.4em
+  } else if lvl == 3 {
+    1.2em
+  } else {
+    1.1em
+  }
+  if lvl == 2 {
+    block(text(size: size, fill: darkred, weight: "regular",
+      box(width: 100%, inset: (bottom: 4pt), stroke: (bottom: 1pt + darkyellow))[#body]))
+  } else {
+    block(text(size: size, fill: darkred, weight: "regular", body))
+  }
+}
 
 = 星球
 
@@ -65,13 +91,7 @@
   [大学], [被黑白仙女 *进一步调教*,完成"不对称结婚"后的适应与规训], [对选中对象进行 *针对性的高强度调教*],
 )
 
-_TODO:待设定_ 各教育阶段的年龄对应与具体学制。
-
-====== 小学
-
-黑白怪物的小学阶段
-
-_TODO:待设定_
+_TODO:待设定_ 各教育阶段的年龄对应与具体学制,以及黑白怪物小学阶段的详细内容。
 
 ==== 深渊
 
@@ -230,7 +250,7 @@ _以下为地图绘制的文字草稿,供后续绘制示意图参考_
   - *极地*:南北两极覆盖冰盖,南极冰盖更大
   - *天堂卫星*:位于星球高空,轨道平面与主行星赤道略有倾角
 ])
- 
+
 == 天堂卫星
 
 星球拥有一颗名为 *天堂* 的卫星。天堂并非传统天体,而是一个 *生物卫星*。
@@ -659,6 +679,17 @@ _以下为地图绘制的文字草稿,供后续绘制示意图参考_
 
 = 普通生物
 
+普通生物是区别于 *怪物系统* 的常见生物类别,主要包括 *人类*,*吸血鬼*,*精灵* 等,分布在各大陆。
+
+== 普通生物分类
+
+#breakoutbox("已知普通生物", [
+  - *人类*:东大陆的主要聚居者,_TODO:待设定_
+  - *吸血鬼*:南大陆的主要聚居者,_TODO:待设定_
+  - *精灵*:西大陆的主要聚居者,_TODO:待设定_
+  - *其它*:_TODO:待设定_
+])
+
 == 仙女系列
 
 === 仙女共同特征
@@ -739,7 +770,7 @@ _TODO:待设定_
 
 ==== 保温
 
-黑白仙女栖息于 *深渊*_火山口湖_及其沿岸,海拔约 10000m;湖底 *地热* 使湖水深处常年温暖,构成天然的 *保温微环境*。其体温由 *热量循环系统* 与 *主动制冷系统* 双向调控_脂质层保温,氟利昂压缩循环制冷与制热_,并凭借 *深海鱼血统* 潜入 *万米深海的过热海底热泉*:
+黑白仙女栖息于 *深渊*_火山口湖_及其沿岸,海拔约 10000m;湖底 *地热* 使湖水深处常年恒定 $20 "°C"$,构成天然的 *保温微环境*。其体温由 *热量循环系统* 与 *主动制冷系统* 双向调控_脂质层保温,氟利昂压缩循环制冷与制热_,并凭借 *深海鱼血统* 潜入 *万米深海的过热海底热泉*:
 
 #dndtab("保温结构", [
   *脂质保温层*  ], [
