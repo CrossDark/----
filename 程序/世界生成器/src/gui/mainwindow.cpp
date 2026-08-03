@@ -18,6 +18,7 @@
 #include <QLineEdit>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QRandomGenerator>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QSettings>
@@ -88,6 +89,21 @@ MainWindow::MainWindow(QWidget *parent)
     m_seed->setValue(7);
     m_seed->setSpecialValueText(QStringLiteral("随机(0)"));
 
+    /* 种子旁的随机按钮:点击生成随机种子 */
+    auto *seedRandomBtn = new QPushButton(QStringLiteral("🎲"), paramBox);
+    seedRandomBtn->setObjectName(QStringLiteral("seedRandomBtn"));
+    seedRandomBtn->setCursor(Qt::PointingHandCursor);
+    seedRandomBtn->setToolTip(QStringLiteral("随机生成种子"));
+    seedRandomBtn->setFixedSize(32, m_seed->sizeHint().height());
+    connect(seedRandomBtn, &QPushButton::clicked, this, [this]() {
+        m_seed->setValue(QRandomGenerator::global()->bounded(1, 2000000001));
+    });
+    auto *seedRow = new QHBoxLayout;
+    seedRow->setSpacing(6);
+    seedRow->setContentsMargins(0, 0, 0, 0);
+    seedRow->addWidget(m_seed, 1);
+    seedRow->addWidget(seedRandomBtn);
+
     m_faults = new QSpinBox(paramBox);
     m_faults->setRange(0, 5000);
     m_faults->setValue(0);
@@ -131,7 +147,7 @@ MainWindow::MainWindow(QWidget *parent)
     outRow->addWidget(m_output, 1);
     outRow->addWidget(browseBtn);
 
-    form->addRow(QStringLiteral("种子"), m_seed);
+    form->addRow(QStringLiteral("种子"), seedRow);
     form->addRow(QStringLiteral("故障次数"), m_faults);
     form->addRow(QStringLiteral("水占比"), m_water);
     form->addRow(QStringLiteral("宽度"), m_width);
