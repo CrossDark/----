@@ -58,8 +58,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          submodules: true
+
+      - name: 初始化子模块
+        run: git submodule update --init --recursive
 
       - name: Setup Typst
         uses: typst-community/setup-typst@v4
@@ -104,8 +105,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: true
+
+      - name: 初始化子模块
+        run: git submodule update --init --recursive
 
       - name: Install zlib (Linux)
         if: runner.os == 'Linux'
@@ -163,8 +165,9 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v5
-        with:
-          submodules: true
+
+      - name: 初始化子模块
+        run: git submodule update --init --recursive
 
       - name: Install Qt (macOS)
         if: runner.os == 'macOS'
