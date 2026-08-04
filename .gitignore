@@ -4,7 +4,4 @@ build/
 build-gui/
 .venv/
 
-文档/dist
-
-程序/地图生成器/GUI/build
-程序/地图生成器/核心/worldgen
+程序/地图生成器/build-*/

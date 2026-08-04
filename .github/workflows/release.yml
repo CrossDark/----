@@ -58,6 +58,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Setup Typst
         uses: typst-community/setup-typst@v4
@@ -102,6 +104,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install zlib (Linux)
         if: runner.os == 'Linux'
@@ -159,6 +163,8 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: true
 
       - name: Install Qt (macOS)
         if: runner.os == 'macOS'
