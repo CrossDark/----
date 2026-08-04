@@ -1,0 +1,9 @@
+[submodule "程序"]
+	path = 程序
+	url = https://github.com/CrossDark/UnderHellCodes.git
+[submodule "模板"]
+	path = 模板
+	url = https://github.com/CrossDark/UnderHellTemplate.git
+[submodule "文档"]
+	path = 文档
+	url = https://github.com/CrossDark/UnderHellDocs.git
