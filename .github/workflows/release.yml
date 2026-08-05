@@ -70,13 +70,16 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq fonts-noto-cjk
 
-      - name: Compile PDF
-        run: make -C 文档 all
+      - name: Compile PDF (普通版 + 打印版 + 小屏版)
+        run: make -C 文档 all print screen
 
       - name: 上传到发行版
         run: |
           cp "文档/dist/地狱之下.pdf" "UnderHell.pdf"
-          gh release upload "${{ needs.create-release.outputs.tag_name }}" "UnderHell.pdf" --clobber
+          cp "文档/dist/地狱之下_打印版.pdf" "UnderHell-print.pdf"
+          cp "文档/dist/地狱之下_小屏版.pdf" "UnderHell-screen.pdf"
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" \
+            "UnderHell.pdf" "UnderHell-print.pdf" "UnderHell-screen.pdf" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
