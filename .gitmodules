@@ -7,3 +7,6 @@
 [submodule "文档"]
 	path = 文档
 	url = https://github.com/CrossDark/UnderHellDocs.git
+[submodule "图片"]
+	path = 图片
+	url = https://github.com/CrossDark/UnderHellImages.git
