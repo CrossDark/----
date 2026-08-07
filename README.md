@@ -1,6 +1,6 @@
 # 地狱之下 (UnderHell)
 
-一个 DND 5E 跑团模组项目,包含文档、模板、地图生成器和图片资源。
+一个架空世界构建项目,包含文档、模板、地图生成器和图片资源。
 
 ## 项目结构
 
@@ -9,7 +9,7 @@
 ```
 UnderHell/
 ├── 文档/          → UnderHellDocs       — Typst 文档源码(地狱之下正文)
-├── 模板/          → UnderHellTemplate   — DND 5E Typst 模板(已发布至 Typst Universe)
+├── 模板/          → UnderHellTemplate   — 架空世界 Typst 模板(已发布至 Typst Universe)
 ├── 图片/          → UnderHellImages     — 地图、插图等图片资源
 ├── 程序/          → UnderHellCodes      — 地图生成器(CLI + GUI)
 └── .github/       — CI/CD 自动编译发布
@@ -65,9 +65,9 @@ cmake --build build-cli
 
 ## 模板
 
-DND 5E Typst 模板,已发布至 Typst Universe(`@preview/underhell`)。
+架空世界 Typst 模板,已发布至 Typst Universe(`@preview/underhell`)。
 
-提供封面、分栏排版、属性方块(statbox)、NPC 卡片(npcbox)、法术卡片(spell)、跨页图片、附录编号等 DND 常用排版功能。
+提供封面、分栏排版、属性方块(statbox)、NPC 卡片(npcbox)、法术卡片(spell)、跨页图片、附录编号等架空世界常用排版功能。
 
 详细用法参见 [模板/README.md](模板/README.md)。
 
