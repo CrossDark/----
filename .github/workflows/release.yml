@@ -283,3 +283,125 @@ jobs:
           gh release upload "${{ needs.create-release.outputs.tag_name }}" "mapgen-gui-windows-x86_64.zip" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ---------- 网站后端 (Linux amd64 / arm64, CGO -> sqlite3) ----------
+  web-backend:
+    name: 网站后端 (${{ matrix.arch_name }})
+    needs: create-release
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch_name: linux-amd64
+            go_arch: amd64
+            cc: gcc
+            pkg_arch: linux-x86-64
+          - arch_name: linux-arm64
+            go_arch: arm64
+            cc: aarch64-linux-gnu-gcc
+            pkg_arch: linux-arm64
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      OUTPUT_BIN: underhell-web-${{ matrix.arch_name }}
+      BACKEND_DIR: 程序/网站/backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: 初始化子模块
+        run: git submodule update --init --recursive
+
+      - name: 安装 ARM64 交叉编译工具链
+        if: matrix.go_arch == 'arm64'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache-dependency-path: ${{ env.BACKEND_DIR }}/go.sum
+
+      - name: 生成默认部署配置与 systemd unit
+        working-directory: ${{ env.BACKEND_DIR }}
+        run: |
+          # 生产环境默认 config.yaml（路径占位，用户部署时自行替换）
+          cat > config.prod.yaml <<'YAML'
+          server:
+            port: 8080
+          repo:
+            path: "/opt/underhell"
+          typst:
+            bin: "/usr/local/bin/typst"
+            root: "/opt/underhell"
+            fonts: "/opt/underhell/字体"
+          database:
+            path: "/opt/underhell/程序/网站/backend/data.db"
+          jwt:
+            secret: "REPLACE-WITH-`openssl-rand-hex-32`"
+          YAML
+          # systemd unit（含部署路径占位）
+          cat > underhell-web.service <<'UNIT'
+          [Unit]
+          Description=UnderHell Web Server
+          After=network.target
+
+          [Service]
+          Type=simple
+          User=www-data
+          Group=www-data
+          WorkingDirectory=/opt/underhell/程序/网站/backend
+          ExecStart=/opt/underhell/程序/网站/backend/bin/server
+          Environment=GIN_MODE=release
+          Restart=always
+          RestartSec=5
+          NoNewPrivileges=true
+          ProtectSystem=strict
+          ReadWritePaths=/opt/underhell/程序/网站/backend /tmp
+
+          [Install]
+          WantedBy=multi-user.target
+          UNIT
+
+      - name: Build 后端二进制
+        working-directory: ${{ env.BACKEND_DIR }}
+        env:
+          CGO_ENABLED: "1"
+          GOOS: linux
+          GOARCH: ${{ matrix.go_arch }}
+          CC: ${{ matrix.cc }}
+          CGO_LDFLAGS: "-static-libgcc -static-libstdc++"
+        run: |
+          mkdir -p bin
+          go build \
+            -trimpath \
+            -tags "osusergo,netgo" \
+            -ldflags "-s -w -extldflags '-static'" \
+            -o "bin/${OUTPUT_BIN}" \
+            ./cmd/server/
+          # 如果静态链接失败（sqlite3 CGO 原因），退回动态链接版本
+          if [ ! -s "bin/${OUTPUT_BIN}" ]; then
+            go build -trimpath -ldflags "-s -w" -o "bin/${OUTPUT_BIN}" ./cmd/server/
+          fi
+          ls -lh "bin/${OUTPUT_BIN}"
+          file "bin/${OUTPUT_BIN}" || true
+
+      - name: 生成 SHA256 与打包
+        working-directory: ${{ env.BACKEND_DIR }}/bin
+        run: |
+          sha256sum "${OUTPUT_BIN}" > "${OUTPUT_BIN}.sha256"
+          cat "${OUTPUT_BIN}.sha256"
+          # 打包二进制 + config.prod.yaml + systemd unit 方便用户部署
+          tar -czf "${OUTPUT_BIN}.tar.gz" -C .. config.prod.yaml underhell-web.service -C "$(pwd)" "${OUTPUT_BIN}" "${OUTPUT_BIN}.sha256"
+          ls -lh "${OUTPUT_BIN}" "${OUTPUT_BIN}.sha256" "${OUTPUT_BIN}.tar.gz"
+
+      - name: 上传到发行版
+        working-directory: ${{ env.BACKEND_DIR }}/bin
+        run: |
+          gh release upload "${{ needs.create-release.outputs.tag_name }}" \
+            "${OUTPUT_BIN}" "${OUTPUT_BIN}.sha256" "${OUTPUT_BIN}.tar.gz" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
